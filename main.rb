@@ -42,7 +42,9 @@ ac_cache_included_paths = "#{output_path}/permission_result.txt"
 ac_cache_excluded_paths = get_env_variable('AC_CACHE_EXCLUDED_PATHS') || ''
 ac_repository_path = get_env_variable('AC_REPOSITORY_DIR')
 # ac_cache_label = get_env_variable('AC_CACHE_LABEL') || abort_with0('Cache label path must be defined.')
-ac_cache_label = "#{build_profile_id}/#{git_branch}/cache"
+ac_referance_branch = get_env_variable('AC_REFERANCE_BRANCH')
+ac_cache_label = "#{build_profile_id}/#{ac_referance_branch}/cache/permission"
+breake_workflow = get_env_variable('AC_BREAKE_WORKFLOW')
 
 ac_token_id = get_env_variable('AC_TOKEN_ID') || abort_with0('AC_TOKEN_ID env variable must be set when build started.')
 ac_callback_url = get_env_variable('AC_CALLBACK_URL') || abort_with0('AC_CALLBACK_URL env variable must be set when build started.')
@@ -63,15 +65,6 @@ def xcode_project_file
     project_path
   end
 end
-
-# def get_value_from_build_settings!(target, variable, configuration = nil)
-#   target.build_configurations.each do |config|
-#       if configuration.nil? || config.name == configuration
-#         value = config.resolve_build_setting(variable)
-#         return value if value
-#       end
-#   end
-# end
 
 def get_value_from_build_settings!(target, variable, configuration = nil)
   values = {}
@@ -188,25 +181,42 @@ end
 
 # diff func
 def compare_files(new_permission, old_permission)
-  puts "diff compare files fonk"
+  puts "New Permissions: \n #{new_permission}"
+  puts "Reference Branch Permissions: \n #{old_permission}"
   
-  new_permission_line = new_permission.split("\n")
-  old_permission_line = old_permission.split("\n")
-  
-  differ = Diff::LCS.diff(new_permission_line, old_permission_line)
+  differ = Diff::LCS.diff(new_permission, old_permission)
 
-  puts differ[0]
-  
-  differ.each do |change|
-    case change.action
-    when '-'
-      puts "Silindi: #{change.element}"
-    when '+'
-      puts "Eklendi: #{change.element}"
-    when ' '
-      puts "Aynı: #{change.element}"
-    end
+  differ.each do |diff|
+    if diff.action == '-'
+      puts "New permission line different in this line: #{diff.element}"
+      if breake_workflow
+        exit 1
+      else
+        exit 0
+      end
+    elsif
+      puts "Referance branch permission line different in this line: #{diff.element}"
+      if breake_workflow == 'false'
+        exit 1
+      else
+        exit 0
+      end  
   end
+  
+  # differ.each do |change|
+  #   case change.action
+  #   when '-'
+  #     puts "Silindi: #{change.element}"
+  #     if breake_workflow
+  #       exit 1
+  #     end  
+  #     exit 0
+  #   when '+'
+  #     puts "Eklendi: #{change.element}"
+  #   when ' '
+  #     puts "Aynı: #{change.element}"
+  #   end
+  # end
 end
 
 def read_file_content(file_path)
@@ -226,8 +236,8 @@ begin
   permission_result = 'permission_result.txt'
   write_values_to_file(xcode_permissions, output_path, permission_result)
   
-  puts "master branch if öncesi"
-  if git_branch == 'master'
+ 
+  if git_branch == ac_referance_branch
     # Cache permission_result.txt according to referance branch
     def run_command(command)
       unless system(command)
@@ -474,7 +484,7 @@ end
     end
 else
    
-    # Cache Pull
+  # Cache Pull
   def get_env_variable(key)
     return nil if ENV[key].nil? || ENV[key].strip.empty?
 
@@ -578,7 +588,7 @@ else
   end
 end
 
-  cached_permission_result = read_file_content("#{output_path}/permission_result.txt")
+  cached_permission_result = read_file_content("#{ac_cache_label}/permission_result.txt")
   previous_permission_result = read_file_content("#{output_path}/#{permission_result}")
 
   compare_files(cached_permission_result, previous_permission_result)

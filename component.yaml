@@ -3,19 +3,12 @@ buildPlatform:
 displayName: "Audit Permission Changes"
 description: "Check your permissions of app according to referance branch"
 inputs:
-- key: "AC_CACHE_LABEL"
-  defaultValue: "$AC_GIT_BRANCH/cache"
+- key: "AC_REFERANCE_BRANCH"
+  defaultValue: "$AC_REFERANCE_BRANCH"
   isRequired: true
-  title: Cache Label
-  description: "User defined cache label to identify one cache from others. Both cache push and pull steps should have the same value to match."
-  helpText:
-- key: "AC_CACHE_INCLUDED_PATHS"
-  defaultValue: "$AC_OUTPUT_DIR/permission_result.txt"
-  isRequired: true
-  title: Permission Result Path
-  description: "Cache file for Permission Results"
-  helpText:
-- key: "AC_BREAKEDOWN_WORKFLOW"
+  title: Referance Branch
+  description: "Specifies the referance branch to check permissions."
+- key: "AC_BREAKE_WORKFLOW"
   isRequired: false
   editorType: select
   defaultValue: "false"
