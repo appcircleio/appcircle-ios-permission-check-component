@@ -1,0 +1,34 @@
+platform: iOS
+buildPlatform:
+displayName: "Audit Permission Changes"
+description: "Check your permissions of app according to referance branch"
+inputs:
+- key: "AC_CACHE_LABEL"
+  defaultValue: "$AC_GIT_BRANCH/cache"
+  isRequired: true
+  title: Cache Label
+  description: "User defined cache label to identify one cache from others. Both cache push and pull steps should have the same value to match."
+  helpText:
+- key: "AC_CACHE_INCLUDED_PATHS"
+  defaultValue: "$AC_OUTPUT_DIR/permission_result.txt"
+  isRequired: true
+  title: Permission Result Path
+  description: "Cache file for Permission Results"
+  helpText:
+- key: "AC_BREAKEDOWN_WORKFLOW"
+  isRequired: false
+  editorType: select
+  defaultValue: "false"
+  options: "false,true"
+  title: Break Down Workflow
+  description: It stops workflow if it is true and there is any changes. 
+  helpText:
+- key: "AC_REPOSITORY_DIR"
+  defaultValue: "$AC_REPOSITORY_DIR"
+  isRequired: false
+  title: Repository Path
+  description: "Specifies the cloned repository path."
+processFilename: ruby
+processArguments: '%AC_STEP_TEMP%/main.rb'
+files:
+- "main.rb"
