@@ -37,12 +37,10 @@ build_profile_id = get_env_variable('AC_BUILD_PROFILE_ID')
 git_branch = get_env_variable('AC_GIT_BRANCH')
 output_path = get_env_variable('AC_OUTPUT_DIR')
 
-#ac_cache_included_paths = get_env_variable('AC_CACHE_INCLUDED_PATHS') || abort_with0('Included paths must be defined.')
-ac_cache_included_paths = "#{output_path}/permission_result.txt"
+ac_referance_branch = get_env_variable('AC_REFERANCE_BRANCH')
+ac_cache_included_paths = "#{output_path}/permission_result_#{ac_referance_branch}.txt"
 ac_cache_excluded_paths = get_env_variable('AC_CACHE_EXCLUDED_PATHS') || ''
 ac_repository_path = get_env_variable('AC_REPOSITORY_DIR')
-# ac_cache_label = get_env_variable('AC_CACHE_LABEL') || abort_with0('Cache label path must be defined.')
-ac_referance_branch = get_env_variable('AC_REFERANCE_BRANCH')
 ac_cache_label = "#{build_profile_id}/#{ac_referance_branch}/cache/permission"
 breake_workflow = get_env_variable('AC_BREAKE_WORKFLOW')
 
@@ -219,7 +217,11 @@ params[:targets] = get_env("AC_TARGETS")
 
 begin
   xcode_permissions = read_permissions_from_info_plist(params, 'INFOPLIST_KEY_')
-  permission_result = 'permission_result.txt'
+  if git_branch == ac_referance_branch
+    permission_result = "permission_result_#{ac_referance_branch}.txt"
+  else
+    permission_result = "permission_result_#{git_branch}.txt"
+  end
   write_values_to_file(xcode_permissions, output_path, permission_result)
   
   if git_branch == ac_referance_branch
@@ -467,9 +469,9 @@ end
         end
       end
     end
-    #Cache Pull
     puts "Permissions succesfully cached"
     exit 0
+    #Cache Pull
   else
     def get_env_variable(key)
       return nil if ENV[key].nil? || ENV[key].strip.empty?
@@ -574,9 +576,8 @@ end
 
   end
 
-  cached_permission_result = read_file_content("#{ac_cache_label}/permission_result.txt")
-  previous_permission_result = read_file_content("#{output_path}/#{permission_result}")
-
+  cached_permission_result = read_file_content("#{output_path}/permission_result_#{ac_referance_branch}.txt")
+  previous_permission_result = read_file_content("#{output_path}/permission_result_#{git_branch}.txt")
   compare_files(cached_permission_result, previous_permission_result)
 
   exit 0
