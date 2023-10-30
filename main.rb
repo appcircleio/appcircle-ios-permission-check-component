@@ -598,3 +598,4 @@ rescue StandardError => e
   puts "Your project is not compatible. Project is not updated. \nError: #{e} "
   exit 1
 end
+end
