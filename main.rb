@@ -217,11 +217,13 @@ params[:targets] = get_env("AC_TARGETS")
 
 begin
   xcode_permissions = read_permissions_from_info_plist(params, 'INFOPLIST_KEY_')
+  
   if git_branch == ac_referance_branch
     permission_result = "permission_result_#{ac_referance_branch}.txt"
   else
     permission_result = "permission_result_#{git_branch}.txt"
   end
+  
   write_values_to_file(xcode_permissions, output_path, permission_result)
   
   if git_branch == ac_referance_branch
@@ -500,8 +502,7 @@ end
     end
   
     ac_repository_path = get_env_variable('AC_REPOSITORY_DIR')
-    ac_cache_label = "#{build_profile_id}/#{ac_referance_branch}/cache/permission"
-  
+    ac_cache_pull_label = "#{build_profile_id}/#{ac_referance_branch}/cache/permission"
     ac_token_id = get_env_variable('AC_TOKEN_ID') || abort_with0('AC_TOKEN_ID env variable must be set when build started.')
     ac_callback_url = get_env_variable('AC_CALLBACK_URL') ||
                       abort_with0('AC_CALLBACK_URL env variable must be set when build started.')
@@ -512,11 +513,11 @@ end
     run_command('unzip -v |head -1')
     run_command('curl --version |head -1')
   
-    cache = "ac_cache/#{ac_cache_label}"
-    zipped = "ac_cache/#{ac_cache_label.gsub('/', '_')}.zip"
+    cache = "ac_cache/#{ac_cache_pull_label}"
+    zipped = "ac_cache/#{ac_cache_pull_label.gsub('/', '_')}.zip"
   
     puts '--- Inputs:'
-    puts ac_cache_label
+    puts ac_cache_pull_label
     puts ac_repository_path
     puts '-----------'
   
@@ -534,7 +535,7 @@ end
     unless ac_token_id.empty?
       puts ''
   
-      ws_signed_url = "#{signed_url_api}&cacheKey=#{ac_cache_label.gsub('/', '_')}&tokenId=#{ac_token_id}"
+      ws_signed_url = "#{signed_url_api}&cacheKey=#{ac_cache_pull_label.gsub('/', '_')}&tokenId=#{ac_token_id}"
       puts ws_signed_url
   
       uri = URI(ws_signed_url)
