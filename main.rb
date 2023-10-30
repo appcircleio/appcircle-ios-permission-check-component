@@ -468,6 +468,8 @@ end
       end
     end
     #Cache Pull
+    puts "Permissions succesfully cached"
+    exit 0
   else
     def get_env_variable(key)
       return nil if ENV[key].nil? || ENV[key].strip.empty?
@@ -496,7 +498,7 @@ end
     end
   
     ac_repository_path = get_env_variable('AC_REPOSITORY_DIR')
-    ac_cache_label = "#{build_profile_id}/#{ac_referance_branch}/cache"
+    ac_cache_label = "#{build_profile_id}/#{ac_referance_branch}/cache/permission"
   
     ac_token_id = get_env_variable('AC_TOKEN_ID') || abort_with0('AC_TOKEN_ID env variable must be set when build started.')
     ac_callback_url = get_env_variable('AC_CALLBACK_URL') ||
