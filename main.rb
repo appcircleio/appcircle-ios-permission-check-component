@@ -185,6 +185,7 @@ def compare_files(new_permission, old_permission)
   differ = Diff::LCS.diff(new_permission, old_permission)
 
   differ.each do |diff|
+    if diff.is_a?(Diff::LCS::Change)
     if diff.action == '-'
       puts "New permission line different in this line: #{diff.element}"
       if breake_workflow
@@ -201,6 +202,7 @@ def compare_files(new_permission, old_permission)
       end  
     end  
   end
+end
 end
 
 def read_file_content(file_path)
