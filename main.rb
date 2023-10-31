@@ -49,6 +49,10 @@ ac_callback_url = get_env_variable('AC_CALLBACK_URL') || abort_with0('AC_CALLBAC
 
 signed_url_api = "#{ac_callback_url}?action=getCacheUrls"
 
+if git_branch.include?("/")
+  git_branch = git_branch.gsub("/","_")
+end  
+
 # .xcodeproj dosyasının yolunu al
 def xcode_project_file
   repository_path = env_has_key('AC_REPOSITORY_DIR')
@@ -178,26 +182,40 @@ def write_values_to_file(values, output_dir ,permission_result)
 end
 
 # diff func
-def compare_files(new_permission, old_permission)
-
-  breake_workflow = get_env_variable('AC_BREAKE_WORKFLOW')
+def compare_files(cached_permission, current_permission_result)
+    
+  puts "----------------"
+  puts "Reference Branch Permissions:\n#{cached_permission}"
+  puts "----------------"
+  puts "New Permissions:\n#{current_permission_result}"
   
-  puts "Reference Branch Permissions: \n #{new_permission}"
-  puts "New Permissions: \n #{old_permission}"
+  seq1 = current_permission_result.split("\n")
+  seq2 = cached_permission.split("\n")
   
-  seq1 = old_permission.split("\n")
-  seq2 = new_permission.split("\n")
-  differ = Diff::LCS.diff(seq2, seq1)
-  puts differ
+  differance_new = seq1 - seq2
+  differance_old = seq2 - seq1
+  
+  
 
-  puts "Permission Difference Check Completed"
-
-  if breake_workflow
-    puts "Workflow STOPPED due to the fact that there are some changes"
-    exit 1
+  if differance_new.empty? && differance_old.empty?
+      puts "NO PERMISSION CHANGES DETECTED"
+      exit 0
   else
-    exit 0
+      puts "----------------"
+      puts "Added Permissions:"
+
+      differance_new.each do |line|
+          puts line
+      end
+    
+      puts "----------------"
+      puts "Removed Permissions:"
+      differance_old.each do |line|
+          puts line
+      end
+      puts "----------------"
   end
+  exit 1
 end
 
 def read_file_content(file_path)
