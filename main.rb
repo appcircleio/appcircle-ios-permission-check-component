@@ -189,7 +189,9 @@ def compare_files(new_permission, old_permission)
   puts differ
 
   puts "Permission Difference Check Completed"
+
   if breake_workflow
+    puts "Workflow STOPPED due to the fact that there are some changes"
     exit 1
   end
 end
