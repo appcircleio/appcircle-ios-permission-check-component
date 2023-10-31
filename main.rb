@@ -195,6 +195,8 @@ def compare_files(new_permission, old_permission)
   if breake_workflow
     puts "Workflow STOPPED due to the fact that there are some changes"
     exit 1
+  else
+    exit 0
   end
 end
 
