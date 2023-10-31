@@ -179,30 +179,19 @@ end
 
 # diff func
 def compare_files(new_permission, old_permission)
-  puts "New Permissions: \n #{old_permission}"
-  puts "Reference Branch Permissions: \n #{new_permission}"
   
-  differ = Diff::LCS.diff(new_permission, old_permission)
+  puts "Reference Branch Permissions: \n #{new_permission}"
+  puts "New Permissions: \n #{old_permission}"
+  
+  seq1 = old_permission.split("\n")
+  seq2 = new_permission.split("\n")
+  differ = Diff::LCS.diff(seq2, seq1)
+  puts differ
 
-  differ.each do |diff|
-    if diff.is_a?(Diff::LCS::Change)
-    if diff.action == '-'
-      puts "New permission line different in this line: #{diff.element}"
-      if breake_workflow
-        exit 1
-      else
-        exit 0
-      end
-    elsif
-      puts "Referance branch permission line different in this line: #{diff.element}"
-      if breake_workflow == 'false'
-        exit 1
-      else
-        exit 0
-      end  
-    end  
+  puts "Permission Difference Check Completed"
+  if breake_workflow
+    exit 1
   end
-end
 end
 
 def read_file_content(file_path)
