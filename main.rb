@@ -179,6 +179,8 @@ end
 
 # diff func
 def compare_files(new_permission, old_permission)
+
+  breake_workflow = get_env_variable('AC_BREAKE_WORKFLOW')
   
   puts "Reference Branch Permissions: \n #{new_permission}"
   puts "New Permissions: \n #{old_permission}"
