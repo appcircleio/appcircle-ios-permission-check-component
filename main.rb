@@ -54,9 +54,9 @@ def xcode_project_file
   repository_path = env_has_key('AC_REPOSITORY_DIR')
   project_path = env_has_key('AC_PROJECT_PATH')
   project_path = (Pathname.new repository_path).join(Pathname.new(project_path))
-  puts "Proje yolu: #{project_path}"
+  puts "Project path: #{project_path}"
   project_directory = File.dirname(project_path)
-  puts "Proje dizini: #{project_directory}"
+  puts "Project Direction: #{project_directory}"
   if File.extname(project_path) == '.xcworkspace' 
     Dir[File.join(project_directory, '*.xcodeproj')][0]
   else
@@ -179,8 +179,8 @@ end
 
 # diff func
 def compare_files(new_permission, old_permission)
-  puts "New Permissions: \n #{new_permission}"
-  puts "Reference Branch Permissions: \n #{old_permission}"
+  puts "New Permissions: \n #{old_permission}"
+  puts "Reference Branch Permissions: \n #{new_permission}"
   
   differ = Diff::LCS.diff(new_permission, old_permission)
 
@@ -204,6 +204,7 @@ def compare_files(new_permission, old_permission)
 end
 
 def read_file_content(file_path)
+  puts file_path
   File.read(file_path)
 end
 
