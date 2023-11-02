@@ -188,12 +188,7 @@ end
 
 ##Cache Push Functions
 def add_includes(included_paths, zip)  
-  included_paths.each do |f|
-    next if ['.', '..'].include?(f)
-    next if f.end_with?('.') || f.end_with?('..')
-
-    zip += " #{f}"
-  end
+  zip += " #{included_paths}" unless included_paths.nil? || included_paths.empty?
   zip
 end
 
@@ -220,7 +215,7 @@ def cache_path(base_path, included_path, env_dirs)
 
   cwd = Dir.pwd
   Dir.chdir(base_path)
-  paths = Dir.glob(included_path.to_s, File::FNM_DOTMATCH)
+  paths = Dir[included_path].first
 
   if paths.empty?
     Dir.chdir(cwd)
@@ -265,12 +260,10 @@ end
 
 
 ## Get necessary Parameters
-scheme = get_env_variable('AC_SCHEME')
+scheme = get_env_variable('AC_SCHEME') || abort_with0('AC_SCHEME env variable must be set when build started')
 params = {}
-params[:configuration] = get_env_variable('AC_IOS_CONFIGURATION_NAME')
 params[:xcodeproj] = xcode_project_file
 params[:scheme] = scheme
-params[:targets] = get_env_variable("AC_TARGETS")
 
 
 ## Begin search, cache, read Permissions
