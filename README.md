@@ -9,7 +9,4 @@ Required Input Variables
 - `AC_TOKEN_ID`: System generated token used for getting signed url. Zipped cache file is uploaded to signed url.
 - `AC_CALLBACK_URL`: System generated callback url for signed url web service. Its value is different for various environments.
 
-Optional Input Variables
-
-- `AC_REPOSITORY_DIR`: Cloned git repository path. Included and excluded paths are defined relative to cloned repository, except `~/`, `/` or environment variable prefixed paths. See following sections for more details.
 

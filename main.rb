@@ -6,6 +6,10 @@ require 'plist'
 require 'digest'
 require 'set'
 
+def env_has_key(key)
+  get_env_variable(key) || abort("Missing: #{key}")
+end
+
 def get_env_variable(key)
   ENV[key].nil? || ENV[key] == '' ? nil : ENV[key]
 end
@@ -22,19 +26,19 @@ def abort_with0(message)
   exit 0
 end
 
-build_profile_id = get_env_variable('AC_BUILD_PROFILE_ID') || abort("Missing: AC_BUILD_PROFILE_ID")
-git_branch = get_env_variable('AC_GIT_BRANCH') || abort("Missing: AC_GIT_BRANCH")
-$output_path = get_env_variable('AC_OUTPUT_DIR') || abort("Missing: AC_OUTPUT_DIR")
+build_profile_id = env_has_key('AC_BUILD_PROFILE_ID') 
+git_branch = env_has_key('AC_GIT_BRANCH') 
+$output_path = env_has_key('AC_OUTPUT_DIR') 
 
 if git_branch.include?("/")
   git_branch = git_branch.gsub("/","_")
 end  
 
-ac_referance_branch = get_env_variable('AC_REFERANCE_BRANCH') || abort("Missing: AC_REFERANCE_BRANCH")
+ac_referance_branch = env_has_key('AC_REFERANCE_BRANCH') 
 ac_cache_included_paths = "#{$output_path}/permission_result_#{ac_referance_branch}.txt"
 
-$ac_repository_path = get_env_variable('AC_REPOSITORY_DIR') 
-$project_path = get_env_variable('AC_PROJECT_PATH')
+$ac_repository_path = env_has_key('AC_REPOSITORY_DIR') 
+$project_path = env_has_key('AC_PROJECT_PATH')
 ac_cache_label = "#{build_profile_id}/#{ac_referance_branch}/cache/permission"
 ac_cache_pull_label = "#{build_profile_id}/#{ac_referance_branch}/cache/permission"
 ac_token_id = get_env_variable('AC_TOKEN_ID') || abort_with0('AC_TOKEN_ID env variable must be set when build started.')
@@ -272,7 +276,7 @@ begin
   permission_result = "permission_result_#{git_branch}.txt"
   write_values_to_file(xcode_permissions, $output_path, permission_result)
   
-  
+  ac_cache_label_spelling = ac_cache_label.gsub('/', '_')
 # Run cache and permission dif
 # Cache permission_result.txt according to referance branch
   if git_branch == ac_referance_branch
@@ -281,7 +285,7 @@ begin
     run_command('curl --version |head -1')
 
     @cache = "ac_cache/#{ac_cache_label}"
-    zipped = "ac_cache/#{ac_cache_label.gsub('/', '_')}.zip"
+    zipped = "ac_cache/#{ac_cache_label_spelling}.zip"
 
     puts '--- Inputs:'
     puts "Cache Label: #{ac_cache_label}"
@@ -343,7 +347,7 @@ begin
     unless ac_token_id.empty?
       puts ''
         
-      ws_signed_url = "#{signed_url_api}&cacheKey=#{ac_cache_label.gsub('/', '_')}&tokenId=#{ac_token_id}"
+      ws_signed_url = "#{signed_url_api}&cacheKey=#{ac_cache_label_spelling}&tokenId=#{ac_token_id}"
       puts ws_signed_url
         
       uri = URI(ws_signed_url)
