@@ -8,20 +8,5 @@ inputs:
   isRequired: true
   title: Referance Branch
   description: "Specifies the referance branch to check permissions."
-- key: "AC_BREAKE_WORKFLOW"
-  isRequired: false
-  editorType: select
-  defaultValue: "false"
-  options: "false,true"
-  title: Break Down Workflow
-  description: It stops workflow if it is true and there is any changes. 
-  helpText:
-- key: "AC_REPOSITORY_DIR"
-  defaultValue: "$AC_REPOSITORY_DIR"
-  isRequired: false
-  title: Repository Path
-  description: "Specifies the cloned repository path."
-processFilename: ruby
-processArguments: '%AC_STEP_TEMP%/main.rb'
 files:
 - "main.rb"
