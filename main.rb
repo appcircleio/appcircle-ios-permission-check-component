@@ -193,6 +193,7 @@ end
 def cache_push_and_pull_file()
   @cache = "ac_cache/#{$ac_cache_label}"
   cache_file = "#{@cache}/#{File.basename($ac_cache_included_path)}"
+  ac_cache_label_spelling = $ac_cache_label.gsub('/', '_')
   
   puts '--- Inputs:'
   puts "Cache Label: #{$ac_cache_label}"
@@ -223,7 +224,7 @@ def cache_push_and_pull_file()
       puts ''
 
       signed_url_api = "#{$ac_callback_url}?action=getCacheUrls"
-      ws_signed_url = "#{signed_url_api}&cacheKey=#{$ac_cache_label.gsub('/', '_')}&tokenId=#{$ac_token_id}"
+      ws_signed_url = "#{signed_url_api}&cacheKey=#{ac_cache_label_spelling}&tokenId=#{$ac_token_id}"
       puts ws_signed_url
 
       uri = URI(ws_signed_url)
@@ -261,7 +262,7 @@ def cache_push_and_pull_file()
       puts ''
 
       signed_url_api = "#{$ac_callback_url}?action=getCacheUrls"
-      ws_signed_url = "#{signed_url_api}&cacheKey=#{$ac_cache_label.gsub('/', '_')}&tokenId=#{$ac_token_id}"
+      ws_signed_url = "#{signed_url_api}&cacheKey=#{ac_cache_label_spelling}&tokenId=#{$ac_token_id}"
       puts ws_signed_url
 
       uri = URI(ws_signed_url)
