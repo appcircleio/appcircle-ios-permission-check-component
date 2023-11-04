@@ -35,15 +35,14 @@ if git_branch.include?("/")
 end  
 
 ac_referance_branch = env_has_key('AC_REFERANCE_BRANCH') 
-ac_cache_included_paths = "#{$output_path}/permission_result_#{ac_referance_branch}.txt"
+$ac_cache_included_path = "#{$output_path}/permission_result_#{ac_referance_branch}.txt"
 
 $ac_repository_path = env_has_key('AC_REPOSITORY_DIR') 
 $project_path = env_has_key('AC_PROJECT_PATH')
-ac_cache_label = "#{build_profile_id}/#{ac_referance_branch}/cache/permission"
-ac_cache_pull_label = "#{build_profile_id}/#{ac_referance_branch}/cache/permission"
-ac_token_id = get_env_variable('AC_TOKEN_ID') || abort_with0('AC_TOKEN_ID env variable must be set when build started.')
-ac_callback_url = get_env_variable('AC_CALLBACK_URL') || abort_with0('AC_CALLBACK_URL env variable must be set when build started.')
-signed_url_api = "#{ac_callback_url}?action=getCacheUrls"
+$ac_cache_label = "#{build_profile_id}/#{ac_referance_branch}/cache/permission"
+$ac_token_id = get_env_variable('AC_TOKEN_ID') || abort_with0('AC_TOKEN_ID env variable must be set when build started.')
+$ac_callback_url = get_env_variable('AC_CALLBACK_URL') || abort_with0('AC_CALLBACK_URL env variable must be set when build started.')
+signed_url_api = "#{$ac_callback_url}?action=getCacheUrls"
 
 # .xcodeproj dosyasının yolunu al
 def xcode_project_file
@@ -191,76 +190,95 @@ def run_command_with_log(command)
 end
 
 ##Cache Push Functions
-def add_includes(included_paths, zip)  
-  zip += " #{included_paths}" unless included_paths.nil? || included_paths.empty?
-  zip
-end
+def cache_push_single_file()
+  @cache = "ac_cache/#{$ac_cache_label}"
 
-def add_log_file(folder, file, zip)
-  if $output_path
-    system("mkdir -p #{folder}")
-    zip += " > #{folder}/#{file}"
-  end
-  zip
-end
-
-def run_zip(zip_file, zip)
-  run_command_with_log(zip)
-  run_command("ls -lh #{zip_file}")
-end
-
-def cache_path(base_path, included_path, env_dirs)
-  puts "Include: #{included_path} in #{base_path}"
-
-  unless Dir.exist?(base_path)
-    puts "Warning: #{base_path} doesn't exist yet. Check folder is correct and available."
-    return nil
+  unless File.exist?($ac_cache_included_path)
+    abort_with0("File not found: #{$ac_cache_included_path}")
   end
 
-  cwd = Dir.pwd
-  Dir.chdir(base_path)
-  paths = Dir[included_path].first
+  cache_file = "#{@cache}/#{File.basename($ac_cache_included_path)}"
+  system("mkdir -p #{@cache}")
 
-  if paths.empty?
-    Dir.chdir(cwd)
-    return nil
+  system("cp #{$ac_cache_included_path} #{cache_file}")
+
+  if File.exist?("#{cache_file}.md5")
+    pulled_md5sum = File.open("#{cache_file}.md5", 'r', &:readline).strip
+    pushed_md5sum = Digest::MD5.file(cache_file).hexdigest
+    if pulled_md5sum == pushed_md5sum
+      puts 'Cache is the same as the pulled one. No need to upload.'
+      exit 0
+    end
   end
 
-  base_path = "/#{env_dirs[base_path]}" if env_dirs.key?(base_path)
-  zip_file = "#{cwd}/#{@cache}#{base_path}/#{included_path.gsub('/', '_')}.zip"
-  system("mkdir -p #{cwd}/#{@cache}#{base_path}")
-  zip = "zip -r -FS #{zip_file}"
-  zip = add_includes(paths, zip)
-  zip = add_log_file("#{$output_path}/#{@cache}#{base_path}", "#{included_path.gsub('/', '_')}.zip.log", zip)
-  run_zip(zip_file, zip)
+  if !$ac_token_id.empty?
+    puts ''
 
-  Dir.chdir(cwd)
-  zip_file
-end
+    signed_url_api = "#{$ac_callback_url}?action=getCacheUrls"
+    ws_signed_url = "#{signed_url_api}&cacheKey=#{$ac_cache_label.gsub('/', '_')}&tokenId=#{$ac_token_id}"
+    puts ws_signed_url
 
-def search_env_dirs(path, env_dirs)
-  return path if env_dirs.key?(path)
+    uri = URI(ws_signed_url)
+    response = Net::HTTP.get(uri)
 
-  index_of_slash = path.rindex('/')
-  return search_env_dirs(path[0..index_of_slash - 1], env_dirs) if index_of_slash.positive?
+    unless response.empty?
+      puts 'Uploading cache...'
 
-  nil
-end
+      signed = JSON.parse(response)
+      ENV['AC_CACHE_PUT_URL'] = signed['putUrl']
+      puts ENV['AC_CACHE_PUT_URL']
 
-def find_base_path(path, env_dirs)
-  base_path = ''
-  parts = path.split('/')
-  order = 1
-  parts.each do |w|
-    break if order == parts.length
-    break if w.include?('*')
-
-    base_path += "/#{w}" unless w.empty?
-    order += 1
+      if get_env_variable('AC_CACHE_PROVIDER').eql?('FILESYSTEM')
+        curl = 'curl -0 --location --request PUT'
+        run_command_with_log("#{curl} '#{ENV['AC_CACHE_PUT_URL']}' --form 'file=@\"#{cache_file}\"'")
+      else
+        curl = 'curl -0 -X PUT -H "Content-Type: application/zip"'
+        run_command_with_log("#{curl} --upload-file #{cache_file} $AC_CACHE_PUT_URL")
+      end
+    end
   end
-  env_path = search_env_dirs(base_path, env_dirs)
-  env_path || base_path
 end
+
+#Cache Pull Function
+def cache_pull_single_file()
+  @cache = "ac_cache/#{$ac_cache_label}"
+  
+  if File.exist?("#{@cache}/#{File.basename($ac_cache_included_path)}")
+    puts 'File already cached. No need to pull.'
+    exit 0
+  end
+  
+  pulled_cache = "#{@cache}/#{File.basename($ac_cache_included_path)}"
+  system("mkdir -p #{@cache}")
+
+  if !$ac_token_id.empty?
+    puts ''
+
+    signed_url_api = "#{$ac_callback_url}?action=getCacheUrls"
+    ws_signed_url = "#{signed_url_api}&cacheKey=#{$ac_cache_label.gsub('/', '_')}&tokenId=#{$ac_token_id}"
+    puts ws_signed_url
+
+    uri = URI(ws_signed_url)
+    response = Net::HTTP.get(uri)
+
+    unless response.empty?
+      puts 'Download Cached File'
+
+      signed = JSON.parse(response)
+      ENV['AC_CACHE_GET_URL'] = signed['getUrl']
+      puts ENV['AC_CACHE_GET_URL']
+
+      if get_env_variable('AC_CACHE_PROVIDER').eql?('FILESYSTEM')
+        run_command_with_log("curl -X GET --fail -o #{pulled_cache} '#{ENV['AC_CACHE_GET_URL']}'")
+      else
+        run_command_with_log("curl -X GET -H \"Content-Type: application/zip\" --fail -o #{pulled_cache} $AC_CACHE_GET_URL")
+      end
+
+      run_command_with_log("mv #{pulled_cache} #{$output_path}/")
+    end
+  end
+end
+
 
 
 ## Get necessary Parameters
@@ -276,169 +294,30 @@ begin
   permission_result = "permission_result_#{git_branch}.txt"
   write_values_to_file(xcode_permissions, $output_path, permission_result)
   
-  ac_cache_label_spelling = ac_cache_label.gsub('/', '_')
-# Run cache and permission dif
-# Cache permission_result.txt according to referance branch
-  if git_branch == ac_referance_branch
-    # check dependencies
-    run_command('zip -v |head -2')
-    run_command('curl --version |head -1')
+# Run Cache Push and Pull 
 
-    @cache = "ac_cache/#{ac_cache_label}"
-    zipped = "ac_cache/#{ac_cache_label_spelling}.zip"
+  if git_branch == ac_referance_branch
 
     puts '--- Inputs:'
-    puts "Cache Label: #{ac_cache_label}"
-    puts "Cache Included: #{ac_cache_included_paths}"
+    puts "Cache Label: #{$ac_cache_label}"
+    puts "Cache Included: #{$ac_cache_included_path}"
     puts "Repository Path: #{$ac_repository_path}"
     puts '-----------'
-
-    env_dirs = Hash.new('')
-    ENV.each_pair do |k, v|
-      env_dirs[v] = k if k.start_with?('AC_') && File.directory?(v)
-    end
-
-    uptodate_zips = Set.new([])
-
-    ac_cache_included_paths.split(':').each do |included_path|
-      next if included_path.empty?
-
-      zip_file = nil
-      if included_path.start_with?('~/')
-        included_path = included_path[('~/'.length)..-1]
-        zip_file = cache_path(ENV['HOME'], included_path, env_dirs)
-      elsif included_path.start_with?('/')
-        base_path = find_base_path(included_path, env_dirs)
-        next unless base_path
-
-        zip_file = cache_path(base_path, included_path[(base_path.length + 1)..-1], env_dirs)
-      elsif $ac_repository_path
-        zip_file = cache_path($ac_repository_path, included_path, env_dirs)
-      else
-        puts "Warning: #{included_path} is skipped. It can be used only after Git Clone workflow step."
-      end
-
-      uptodate_zips.add(zip_file.sub("#{Dir.pwd}/", '')) if zip_file
-    end
-
-    # remove dead zips (includes) from pulled zips if not in uptodate set
-    Dir.glob("#{@cache}/**/*.zip", File::FNM_DOTMATCH).each do |zip_file|
-      unless uptodate_zips.include?(zip_file)
-        system("rm -f #{zip_file}")
-        puts "Info: #{zip_file} is not in uptodate includes. Removed."
-      end
-    end
-    system("find #{@cache} -empty -type d -delete")
-
-    run_command("[ -s #{zipped} ] || rm -f #{zipped}")
-    run_command_with_log("zip -r -0 -FS #{zipped} #{@cache}")
-    run_command("ls -lh #{zipped}")
-
-    if File.exist?("#{zipped}.md5")
-      pulled_md5sum = File.open("#{zipped}.md5", 'r', &:readline).strip
-      pushed_md5sum = Digest::MD5.file(zipped).hexdigest
-      puts "#{pulled_md5sum} =? #{pushed_md5sum}"
-      if pulled_md5sum == pushed_md5sum
-        puts 'Cache is the same as pulled one. No need to upload.'
-        exit 0
-      end
-    end
-
-    unless ac_token_id.empty?
-      puts ''
-        
-      ws_signed_url = "#{signed_url_api}&cacheKey=#{ac_cache_label_spelling}&tokenId=#{ac_token_id}"
-      puts ws_signed_url
-        
-      uri = URI(ws_signed_url)
-      response = Net::HTTP.get(uri)
-      
-      unless response.empty?
-        puts 'Uploading cache...'
-        
-        signed = JSON.parse(response)
-        ENV['AC_CACHE_PUT_URL'] = signed['putUrl']
-          puts ENV['AC_CACHE_PUT_URL']
-            
-          if get_env_variable('AC_CACHE_PROVIDER').eql?('FILESYSTEM')
-            curl = 'curl -0 --location --request PUT'
-            run_command_with_log("#{curl} '#{ENV['AC_CACHE_PUT_URL']}' --form 'file=@\"#{zipped}\"'")
-          else
-            curl = 'curl -0 -X PUT -H "Content-Type: application/zip"'
-            run_command_with_log("#{curl} --upload-file #{zipped} $AC_CACHE_PUT_URL")
-          end
-        end
-      end
+# Cache Push permission_result.txt according to referance branch
+    cache_push_single_file()
+   
     puts "Permissions succesfully cached"
     exit 0
 
- ##Cache Pull
   else
-    # check dependencies
-    run_command('unzip -v |head -1')
-    run_command('curl --version |head -1')
-  
-    cache = "ac_cache/#{ac_cache_pull_label}"
-    zipped = "ac_cache/#{ac_cache_pull_label.gsub('/', '_')}.zip"
-  
+
     puts '--- Inputs:'
-    puts "Cache Pull Label: #{ac_cache_pull_label}"
+    puts "Cache Label: #{$ac_cache_label}"
     puts "Repository Path: #{$ac_repository_path}"
     puts '-----------'
+# Cache Pull permission_result.txt 
+    cache_pull_single_file()
   
-    env_dirs = Hash.new('')
-    ENV.each_pair do |k, v|
-      next unless k.start_with?('AC_')
-      next if v.include?('//') || v.include?(':')
-  
-      env_dirs[k] = v if File.directory?(v) || %r{^(.+)/([^/]+)$} =~ v
-    end
-  
-    system("rm -rf #{cache}")
-    system("mkdir -p #{cache}")
-  
-    unless ac_token_id.empty?
-      puts ''
-  
-      ws_signed_url = "#{signed_url_api}&cacheKey=#{ac_cache_pull_label.gsub('/', '_')}&tokenId=#{ac_token_id}"
-      puts ws_signed_url
-  
-      uri = URI(ws_signed_url)
-      response = Net::HTTP.get(uri)
-      unless response.empty?
-        puts 'Downloading cache...'
-  
-        signed = JSON.parse(response)
-        ENV['AC_CACHE_GET_URL'] = signed['getUrl']
-        puts ENV['AC_CACHE_GET_URL']
-        if get_env_variable('AC_CACHE_PROVIDER').eql?('FILESYSTEM')
-          run_command_with_log("curl -X GET --fail -o #{zipped} '#{ENV['AC_CACHE_GET_URL']}'")
-        else
-          run_command_with_log("curl -X GET -H \"Content-Type: application/zip\" --fail -o #{zipped} $AC_CACHE_GET_URL")
-        end
-      end
-    end
-  
-    exit 0 unless File.size?(zipped)
-  
-    md5sum = Digest::MD5.file(zipped).hexdigest
-    puts "MD5: #{md5sum}"
-    File.open("#{zipped}.md5", 'a') do |f|
-      f.puts md5sum.to_s
-    end
-    run_command_with_log("unzip -qq -o #{zipped}")
-  
-    Dir.glob("#{cache}/**/*.zip", File::FNM_DOTMATCH).each do |zip_file|
-      puts zip_file
-  
-      last_slash = zip_file.rindex('/')
-      base_path = zip_file[cache.length..last_slash - 1]
-      base_path = env_dirs[base_path[1..-1]] if env_dirs.key?(base_path[1..-1])
-  
-      puts base_path
-      system("mkdir -p #{base_path}")
-      run_command_with_log("unzip -qq -u -o #{zip_file} -d #{base_path}/")
-    end
   end
 
   cached_permission_result = read_file_content("#{$output_path}/permission_result_#{ac_referance_branch}.txt")
