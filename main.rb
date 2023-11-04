@@ -27,19 +27,19 @@ def abort_with0(message)
 end
 
 build_profile_id = env_has_key('AC_BUILD_PROFILE_ID') 
-git_branch = env_has_key('AC_GIT_BRANCH') 
+$git_branch = env_has_key('AC_GIT_BRANCH') 
 $output_path = env_has_key('AC_OUTPUT_DIR') 
 
-if git_branch.include?("/")
-  git_branch = git_branch.gsub("/","_")
+if $git_branch.include?("/")
+  $git_branch = $git_branch.gsub("/","_")
 end  
 
-ac_referance_branch = env_has_key('AC_REFERANCE_BRANCH') 
-$ac_cache_included_path = "#{$output_path}/permission_result_#{ac_referance_branch}.txt"
+$ac_referance_branch = env_has_key('AC_REFERANCE_BRANCH') 
+$ac_cache_included_path = "#{$output_path}/permission_result_#{$ac_referance_branch}.txt"
 
 $ac_repository_path = env_has_key('AC_REPOSITORY_DIR') 
 $project_path = env_has_key('AC_PROJECT_PATH')
-$ac_cache_label = "#{build_profile_id}/#{ac_referance_branch}/cache/permission"
+$ac_cache_label = "#{build_profile_id}/#{$ac_referance_branch}/cache/permission"
 $ac_token_id = get_env_variable('AC_TOKEN_ID') || abort_with0('AC_TOKEN_ID env variable must be set when build started.')
 $ac_callback_url = get_env_variable('AC_CALLBACK_URL') || abort_with0('AC_CALLBACK_URL env variable must be set when build started.')
 signed_url_api = "#{$ac_callback_url}?action=getCacheUrls"
@@ -189,97 +189,101 @@ def run_command_with_log(command)
   puts "took #{(e - s).round(3)}s"
 end
 
-##Cache Push Functions
-def cache_push_single_file()
+##Cache Push and Pull Functions
+def cache_push_and_pull_file()
   @cache = "ac_cache/#{$ac_cache_label}"
-
-  unless File.exist?($ac_cache_included_path)
-    abort_with0("File not found: #{$ac_cache_included_path}")
-  end
-
   cache_file = "#{@cache}/#{File.basename($ac_cache_included_path)}"
-  system("mkdir -p #{@cache}")
+  
+  puts '--- Inputs:'
+  puts "Cache Label: #{$ac_cache_label}"
+  puts "Cache Included: #{$ac_cache_included_path}"
+  puts "Repository Path: #{$ac_repository_path}"
+  puts '-----------'
 
-  system("cp #{$ac_cache_included_path} #{cache_file}")
+  if $git_branch == $ac_referance_branch
 
-  if File.exist?("#{cache_file}.md5")
-    pulled_md5sum = File.open("#{cache_file}.md5", 'r', &:readline).strip
-    pushed_md5sum = Digest::MD5.file(cache_file).hexdigest
-    if pulled_md5sum == pushed_md5sum
-      puts 'Cache is the same as the pulled one. No need to upload.'
+    unless File.exist?($ac_cache_included_path)
+      abort_with0("File not found: #{$ac_cache_included_path}")
+    end
+
+    system("mkdir -p #{@cache}")
+
+    system("cp #{$ac_cache_included_path} #{cache_file}")
+
+    if File.exist?("#{cache_file}.md5")
+      pulled_md5sum = File.open("#{cache_file}.md5", 'r', &:readline).strip
+      pushed_md5sum = Digest::MD5.file(cache_file).hexdigest
+      if pulled_md5sum == pushed_md5sum
+        puts 'Cache is the same as the pulled one. No need to upload.'
+        exit 0
+      end
+    end
+
+    if !$ac_token_id.empty?
+      puts ''
+
+      signed_url_api = "#{$ac_callback_url}?action=getCacheUrls"
+      ws_signed_url = "#{signed_url_api}&cacheKey=#{$ac_cache_label.gsub('/', '_')}&tokenId=#{$ac_token_id}"
+      puts ws_signed_url
+
+      uri = URI(ws_signed_url)
+      response = Net::HTTP.get(uri)
+
+      unless response.empty?
+        puts 'Uploading cache...'
+
+        signed = JSON.parse(response)
+        ENV['AC_CACHE_PUT_URL'] = signed['putUrl']
+        puts ENV['AC_CACHE_PUT_URL']
+
+        if get_env_variable('AC_CACHE_PROVIDER').eql?('FILESYSTEM')
+          curl = 'curl -0 --location --request PUT'
+          run_command_with_log("#{curl} '#{ENV['AC_CACHE_PUT_URL']}' --form 'file=@\"#{cache_file}\"'")
+        else
+          curl = 'curl -0 -X PUT -H "Content-Type: application/zip"'
+          run_command_with_log("#{curl} --upload-file #{cache_file} $AC_CACHE_PUT_URL")
+        end
+      end
+    end
+    puts "Permissions succesfully cached"
+    exit 0
+##Cache Pull    
+  else
+
+    if File.exist?("#{@cache}/#{File.basename($ac_cache_included_path)}")
+      puts 'File already cached. No need to pull.'
       exit 0
     end
-  end
+    
+    system("mkdir -p #{@cache}")
 
-  if !$ac_token_id.empty?
-    puts ''
+    if !$ac_token_id.empty?
+      puts ''
 
-    signed_url_api = "#{$ac_callback_url}?action=getCacheUrls"
-    ws_signed_url = "#{signed_url_api}&cacheKey=#{$ac_cache_label.gsub('/', '_')}&tokenId=#{$ac_token_id}"
-    puts ws_signed_url
+      signed_url_api = "#{$ac_callback_url}?action=getCacheUrls"
+      ws_signed_url = "#{signed_url_api}&cacheKey=#{$ac_cache_label.gsub('/', '_')}&tokenId=#{$ac_token_id}"
+      puts ws_signed_url
 
-    uri = URI(ws_signed_url)
-    response = Net::HTTP.get(uri)
+      uri = URI(ws_signed_url)
+      response = Net::HTTP.get(uri)
 
-    unless response.empty?
-      puts 'Uploading cache...'
+      unless response.empty?
+        puts 'Downloading cache...'
 
-      signed = JSON.parse(response)
-      ENV['AC_CACHE_PUT_URL'] = signed['putUrl']
-      puts ENV['AC_CACHE_PUT_URL']
+        signed = JSON.parse(response)
+        ENV['AC_CACHE_GET_URL'] = signed['getUrl']
+        puts ENV['AC_CACHE_GET_URL']
 
-      if get_env_variable('AC_CACHE_PROVIDER').eql?('FILESYSTEM')
-        curl = 'curl -0 --location --request PUT'
-        run_command_with_log("#{curl} '#{ENV['AC_CACHE_PUT_URL']}' --form 'file=@\"#{cache_file}\"'")
-      else
-        curl = 'curl -0 -X PUT -H "Content-Type: application/zip"'
-        run_command_with_log("#{curl} --upload-file #{cache_file} $AC_CACHE_PUT_URL")
+        if get_env_variable('AC_CACHE_PROVIDER').eql?('FILESYSTEM')
+          run_command_with_log("curl -X GET --fail -o #{cache_file} '#{ENV['AC_CACHE_GET_URL']}'")
+        else
+          run_command_with_log("curl -X GET -H \"Content-Type: application/zip\" --fail -o #{cache_file} $AC_CACHE_GET_URL")
+        end
+        run_command_with_log("mv #{cache_file} #{$output_path}/")
       end
     end
   end
 end
-
-#Cache Pull Function
-def cache_pull_single_file()
-  @cache = "ac_cache/#{$ac_cache_label}"
-  
-  if File.exist?("#{@cache}/#{File.basename($ac_cache_included_path)}")
-    puts 'File already cached. No need to pull.'
-    exit 0
-  end
-  
-  pulled_cache = "#{@cache}/#{File.basename($ac_cache_included_path)}"
-  system("mkdir -p #{@cache}")
-
-  if !$ac_token_id.empty?
-    puts ''
-
-    signed_url_api = "#{$ac_callback_url}?action=getCacheUrls"
-    ws_signed_url = "#{signed_url_api}&cacheKey=#{$ac_cache_label.gsub('/', '_')}&tokenId=#{$ac_token_id}"
-    puts ws_signed_url
-
-    uri = URI(ws_signed_url)
-    response = Net::HTTP.get(uri)
-
-    unless response.empty?
-      puts 'Download Cached File'
-
-      signed = JSON.parse(response)
-      ENV['AC_CACHE_GET_URL'] = signed['getUrl']
-      puts ENV['AC_CACHE_GET_URL']
-
-      if get_env_variable('AC_CACHE_PROVIDER').eql?('FILESYSTEM')
-        run_command_with_log("curl -X GET --fail -o #{pulled_cache} '#{ENV['AC_CACHE_GET_URL']}'")
-      else
-        run_command_with_log("curl -X GET -H \"Content-Type: application/zip\" --fail -o #{pulled_cache} $AC_CACHE_GET_URL")
-      end
-
-      run_command_with_log("mv #{pulled_cache} #{$output_path}/")
-    end
-  end
-end
-
-
 
 ## Get necessary Parameters
 scheme = get_env_variable('AC_SCHEME') || abort_with0('AC_SCHEME env variable must be set when build started')
@@ -287,41 +291,15 @@ params = {}
 params[:xcodeproj] = xcode_project_file
 params[:scheme] = scheme
 
-
 ## Begin search, cache, read Permissions
 begin
   xcode_permissions = read_permissions_from_info_plist(params)
-  permission_result = "permission_result_#{git_branch}.txt"
+  permission_result = "permission_result_#{$git_branch}.txt"
   write_values_to_file(xcode_permissions, $output_path, permission_result)
-  
-# Run Cache Push and Pull 
+  cache_push_and_pull_file()
 
-  if git_branch == ac_referance_branch
-
-    puts '--- Inputs:'
-    puts "Cache Label: #{$ac_cache_label}"
-    puts "Cache Included: #{$ac_cache_included_path}"
-    puts "Repository Path: #{$ac_repository_path}"
-    puts '-----------'
-# Cache Push permission_result.txt according to referance branch
-    cache_push_single_file()
-   
-    puts "Permissions succesfully cached"
-    exit 0
-
-  else
-
-    puts '--- Inputs:'
-    puts "Cache Label: #{$ac_cache_label}"
-    puts "Repository Path: #{$ac_repository_path}"
-    puts '-----------'
-# Cache Pull permission_result.txt 
-    cache_pull_single_file()
-  
-  end
-
-  cached_permission_result = read_file_content("#{$output_path}/permission_result_#{ac_referance_branch}.txt")
-  previous_permission_result = read_file_content("#{$output_path}/permission_result_#{git_branch}.txt")
+  cached_permission_result = read_file_content("#{$output_path}/permission_result_#{$ac_referance_branch}.txt")
+  previous_permission_result = read_file_content("#{$output_path}/permission_result_#{$git_branch}.txt")
   compare_files(cached_permission_result, previous_permission_result)
 
   exit 0
