@@ -35,25 +35,26 @@ if $git_branch.include?("/")
 end  
 
 $ac_referance_branch = env_has_key('AC_REFERANCE_BRANCH') 
-$ac_cache_included_path = "#{$output_path}/permission_result_#{$ac_referance_branch}.txt"
+$ac_permission_cache_path = "#{$output_path}/permission_result_#{$ac_referance_branch}.txt"
 
 $ac_repository_path = env_has_key('AC_REPOSITORY_DIR') 
-$project_path = env_has_key('AC_PROJECT_PATH')
+ac_project_path = env_has_key('AC_PROJECT_PATH')
 $ac_cache_label = "#{build_profile_id}/#{$ac_referance_branch}/cache/permission"
 $ac_token_id = get_env_variable('AC_TOKEN_ID') || abort_with0('AC_TOKEN_ID env variable must be set when build started.')
 $ac_callback_url = get_env_variable('AC_CALLBACK_URL') || abort_with0('AC_CALLBACK_URL env variable must be set when build started.')
-signed_url_api = "#{$ac_callback_url}?action=getCacheUrls"
+$signed_url_api = "#{$ac_callback_url}?action=getCacheUrls"
+$project_path = (Pathname.new $ac_repository_path).join(Pathname.new(ac_project_path))
 
 # .xcodeproj dosyasının yolunu al
 def xcode_project_file
-  project_path = (Pathname.new $ac_repository_path).join(Pathname.new($project_path))
-  puts "Project path: #{project_path}"
-  project_directory = File.dirname(project_path)
+  
+  puts "Project path: #{$project_path}"
+  project_directory = File.dirname($project_path)
   puts "Project Direction: #{project_directory}"
-  if File.extname(project_path) == '.xcworkspace' 
+  if File.extname($project_path) == '.xcworkspace' 
     Dir[File.join(project_directory, '*.xcodeproj')][0]
   else
-    project_path
+    $project_path
   end
 end
 
@@ -87,8 +88,8 @@ def get_plist(params, target)
     puts "Configuration  #{params[:configuration]} not found. Make sure scheme is shared and configuration is present."
     exit 0
   end
-  project_path = (Pathname.new $ac_repository_path).join(Pathname.new($project_path))
-  project_directory = File.dirname(project_path)
+  
+  project_directory = File.dirname($project_path)
   info_plist = build_config.build_settings["INFOPLIST_FILE"]
   if info_plist.nil?
     return nil
@@ -192,24 +193,24 @@ end
 ##Cache Push and Pull Functions
 def cache_push_and_pull_file()
   @cache = "ac_cache/#{$ac_cache_label}"
-  cache_file = "#{@cache}/#{File.basename($ac_cache_included_path)}"
+  cache_file = "#{@cache}/#{File.basename($ac_permission_cache_path)}"
   ac_cache_label_spelling = $ac_cache_label.gsub('/', '_')
   
   puts '--- Inputs:'
   puts "Cache Label: #{$ac_cache_label}"
-  puts "Cache Included: #{$ac_cache_included_path}"
+  puts "Cache Included: #{$ac_permission_cache_path}"
   puts "Repository Path: #{$ac_repository_path}"
   puts '-----------'
 
   if $git_branch == $ac_referance_branch
 
-    unless File.exist?($ac_cache_included_path)
-      abort_with0("File not found: #{$ac_cache_included_path}")
+    unless File.exist?($ac_permission_cache_path)
+      abort_with0("File not found: #{$ac_permission_cache_path}")
     end
 
     system("mkdir -p #{@cache}")
 
-    system("cp #{$ac_cache_included_path} #{cache_file}")
+    system("cp #{$ac_permission_cache_path} #{cache_file}")
 
     if File.exist?("#{cache_file}.md5")
       pulled_md5sum = File.open("#{cache_file}.md5", 'r', &:readline).strip
@@ -223,8 +224,7 @@ def cache_push_and_pull_file()
     if !$ac_token_id.empty?
       puts ''
 
-      signed_url_api = "#{$ac_callback_url}?action=getCacheUrls"
-      ws_signed_url = "#{signed_url_api}&cacheKey=#{ac_cache_label_spelling}&tokenId=#{$ac_token_id}"
+      ws_signed_url = "#{$signed_url_api}&cacheKey=#{ac_cache_label_spelling}&tokenId=#{$ac_token_id}"
       puts ws_signed_url
 
       uri = URI(ws_signed_url)
@@ -251,7 +251,7 @@ def cache_push_and_pull_file()
 ##Cache Pull    
   else
 
-    if File.exist?("#{@cache}/#{File.basename($ac_cache_included_path)}")
+    if File.exist?("#{@cache}/#{File.basename($ac_permission_cache_path)}")
       puts 'File already cached. No need to pull.'
       exit 0
     end
@@ -261,8 +261,7 @@ def cache_push_and_pull_file()
     if !$ac_token_id.empty?
       puts ''
 
-      signed_url_api = "#{$ac_callback_url}?action=getCacheUrls"
-      ws_signed_url = "#{signed_url_api}&cacheKey=#{ac_cache_label_spelling}&tokenId=#{$ac_token_id}"
+      ws_signed_url = "#{$signed_url_api}&cacheKey=#{ac_cache_label_spelling}&tokenId=#{$ac_token_id}"
       puts ws_signed_url
 
       uri = URI(ws_signed_url)
