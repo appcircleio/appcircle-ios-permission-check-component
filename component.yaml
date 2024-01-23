@@ -15,5 +15,10 @@ inputs:
   description: "Specifies the cloned repository path."
 processFilename: ruby
 processArguments: '%AC_STEP_TEMP%/main.rb'
+- key: "AC_PROJECT_PATH"
+    defaultValue: "$AC_PROJECT_PATH"
+    isRequired: true
+    title: Project Path
+    description: "Specifies the project path. For example : ./appcircle.xcodeproj"
 files:
 - "main.rb"
