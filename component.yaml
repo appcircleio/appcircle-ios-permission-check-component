@@ -1,13 +1,13 @@
 platform: iOS
 buildPlatform:
 displayName: "Audit Permission Changes"
-description: "Check your permissions of app according to referance branch"
+description: "Check your permissions of app according to reference branch"
 inputs:
-- key: "AC_REFERANCE_BRANCH"
-  defaultValue: "$AC_REFERANCE_BRANCH"
+- key: "AC_REFERENCE_BRANCH"
+  defaultValue: "$AC_REFERENCE_BRANCH"
   isRequired: true
   title: Referance Branch
-  description: "Specifies the referance branch to check permissions."
+  description: "Specifies the reference branch to check permissions."
 - key: "AC_REPOSITORY_DIR"
   defaultValue: "$AC_REPOSITORY_DIR"
   isRequired: false

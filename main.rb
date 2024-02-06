@@ -34,12 +34,12 @@ if $git_branch.include?("/")
   $git_branch = $git_branch.gsub("/","_")
 end  
 
-$ac_referance_branch = env_has_key('AC_REFERANCE_BRANCH') 
-$ac_permission_cache_path = "#{$output_path}/permission_result_#{$ac_referance_branch}.txt"
+$ac_reference_branch = env_has_key('AC_REFERENCE_BRANCH') 
+$ac_permission_cache_path = "#{$output_path}/permission_result_#{$ac_reference_branch}.txt"
 
 $ac_repository_path = env_has_key('AC_REPOSITORY_DIR') 
 ac_project_path = env_has_key('AC_PROJECT_PATH')
-$ac_cache_label = "#{build_profile_id}/#{$ac_referance_branch}/cache/permission"
+$ac_cache_label = "#{build_profile_id}/#{$ac_reference_branch}/cache/permission"
 $ac_token_id = get_env_variable('AC_TOKEN_ID') || abort_with0('AC_TOKEN_ID env variable must be set when build started.')
 $ac_callback_url = get_env_variable('AC_CALLBACK_URL') || abort_with0('AC_CALLBACK_URL env variable must be set when build started.')
 $signed_url_api = "#{$ac_callback_url}?action=getCacheUrls"
@@ -202,7 +202,7 @@ def cache_push_and_pull_file()
   puts "Repository Path: #{$ac_repository_path}"
   puts '-----------'
 
-  if $git_branch == $ac_referance_branch
+  if $git_branch == $ac_reference_branch
 
     unless File.exist?($ac_permission_cache_path)
       abort_with0("File not found: #{$ac_permission_cache_path}")
@@ -298,7 +298,7 @@ begin
   write_values_to_file(xcode_permissions, $output_path, permission_result)
   cache_push_and_pull_file()
 
-  cached_permission_result = read_file_content("#{$output_path}/permission_result_#{$ac_referance_branch}.txt")
+  cached_permission_result = read_file_content("#{$output_path}/permission_result_#{$ac_reference_branch}.txt")
   previous_permission_result = read_file_content("#{$output_path}/permission_result_#{$git_branch}.txt")
   compare_files(cached_permission_result, previous_permission_result)
 
